@@ -3,6 +3,7 @@ package com.deepaknailwal.urlshortener.service.impl;
 import com.deepaknailwal.urlshortener.config.AppProperties;
 import com.deepaknailwal.urlshortener.dto.CreateUrlRequest;
 import com.deepaknailwal.urlshortener.dto.UrlResponse;
+import com.deepaknailwal.urlshortener.exception.AliasAlreadyExistsException;
 import com.deepaknailwal.urlshortener.exception.BadRequestException;
 import com.deepaknailwal.urlshortener.exception.ResourceNotFoundException;
 import com.deepaknailwal.urlshortener.exception.ShortCodeGenerationException;
@@ -25,6 +26,7 @@ import java.util.Optional;
 public class UrlServiceImpl implements UrlService {
 
     private static final String URL_HASH_CONSTRAINT = "uk_urls_url_hash";
+    private static final String SHORT_CODE_CONSTRAINT = "uk_urls_short_code";
 
     private final UrlRepository urlRepository;
     private final ShortCodeGenerator shortCodeGenerator;
@@ -49,6 +51,14 @@ public class UrlServiceImpl implements UrlService {
         String originalUrl = request.getOriginalUrl();
         validateUrl(originalUrl);
         String hash = urlHasher.hash(originalUrl);
+        String customAlias = request.getCustomAlias();
+
+        if (customAlias != null && !customAlias.isBlank()) {
+            // A custom alias is an explicit request for that exact code, so it bypasses
+            // the dedup-by-hash shortcut below: the same URL can have both an
+            // auto-generated code and one or more custom aliases.
+            return createWithCustomAlias(originalUrl, hash, customAlias);
+        }
 
         // Dedup is global (no per-user scoping): the same URL always maps back
         // to whichever short_code first claimed it.
@@ -58,6 +68,27 @@ public class UrlServiceImpl implements UrlService {
         }
 
         return createWithGeneratedCode(originalUrl, hash);
+    }
+
+    private UrlResponse createWithCustomAlias(String originalUrl, String hash, String customAlias) {
+        if (urlRepository.existsByShortCode(customAlias)) {
+            throw new AliasAlreadyExistsException("custom_alias '" + customAlias + "' is already in use");
+        }
+        Url url = Url.builder()
+                .shortCode(customAlias)
+                .originalUrl(originalUrl)
+                .urlHash(hash)
+                .active(true)
+                .build();
+        try {
+            Url saved = urlPersister.insertInNewTransaction(url);
+            return toResponse(saved);
+        } catch (DataIntegrityViolationException e) {
+            if (violates(e, SHORT_CODE_CONSTRAINT)) {
+                throw new AliasAlreadyExistsException("custom_alias '" + customAlias + "' is already in use");
+            }
+            throw e;
+        }
     }
 
     private UrlResponse createWithGeneratedCode(String originalUrl, String hash) {
