@@ -44,7 +44,9 @@ public class Url {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "short_code", nullable = false, length = 10)
+    // Long enough for the max custom_alias length (50 chars, see CreateUrlRequest); generated
+    // codes are only 7 chars but share this column.
+    @Column(name = "short_code", nullable = false, length = 50)
     private String shortCode;
 
     @Column(name = "original_url", nullable = false, columnDefinition = "text")

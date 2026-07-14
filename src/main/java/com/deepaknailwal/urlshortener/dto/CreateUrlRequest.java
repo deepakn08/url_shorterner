@@ -14,7 +14,7 @@ public class CreateUrlRequest {
 
     // Optional. When present, this exact code is used instead of a generated one.
     // Restricted to URL-safe characters and kept short so aliases stay shareable.
-    @Pattern(regexp = "^[A-Za-z0-9_-]{3,30}$", message = "custom_alias must be 3-30 URL-safe characters (letters, digits, - or _)")
+    @Pattern(regexp = "^[A-Za-z0-9_-]{3,50}$", message = "custom_alias must be 3-50 URL-safe characters (letters, digits, - or _)")
     @JsonProperty("custom_alias")
     private String customAlias;
 }
