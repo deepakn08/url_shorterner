@@ -1,0 +1,34 @@
+spring:
+  application:
+    name: urlshortener
+
+  datasource:
+    # Supabase Dashboard -> Settings -> Database -> Connection Pooling (Transaction mode, port 6543)
+    url: ${DATABASE_HOST}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # PgBouncer transaction-mode pools don't support session-level prepared statements;
+      # keep the JDBC pool modest since PgBouncer already multiplexes connections.
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        # Required alongside prepareThreshold=0 above when pooling through PgBouncer.
+        temp.use_jdbc_metadata_defaults: false
+
+server:
+  port: 8080
+
+app:
+  base-short-url-domain: http://localhost:8080
+  short-code:
+    length: 7
+    max-generation-attempts: 5
